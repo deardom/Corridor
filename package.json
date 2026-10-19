@@ -1,0 +1,14 @@
+{
+  "name": "corridor",
+  "version": "1.0.0",
+  "description": "Corridor: an AI money agent for students who live, study and travel across borders (Fintechathon 2026, Topic C).",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "evidence": "node scripts/run-scenarios.mjs",
+    "start": "node scripts/serve.mjs",
+    "cli": "node scripts/cli.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

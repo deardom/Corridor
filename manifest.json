@@ -1,0 +1,10 @@
+{
+  "name": "Corridor",
+  "short_name": "Corridor",
+  "description": "Money agent for students who live, study and travel across borders",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F7F4FB",
+  "theme_color": "#5B45A8",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
