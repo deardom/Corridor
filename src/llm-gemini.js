@@ -32,18 +32,44 @@ function cleanSchema(schema) {
   return out;
 }
 
-export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 8, fetchImpl } = {}) {
+const TIMEOUT_MS = 45000;   // one request never hangs longer than this
+const MAX_RESEARCH = 2;     // web lookups per question (keeps answers fast and within free limits)
+
+/** Ask for quick answers: little or no hidden "thinking" (the main cause of slow replies). */
+function thinkingFor(modelId) {
+  if (/gemini-2\.5-flash/.test(modelId)) return { thinkingBudget: 0 };
+  if (/gemini-[3-9]/.test(modelId)) return { thinkingLevel: "low" };
+  return null;
+}
+
+export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 6, fetchImpl, timeoutMs = TIMEOUT_MS } = {}) {
   const doFetch = fetchImpl || ((...a) => fetch(...a));
   let modelId = model || null;
+  let useThinkingConfig = true;
+
+  async function post(url, body, signal) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const onAbort = () => ctrl.abort();
+    signal?.addEventListener?.("abort", onAbort);
+    try {
+      return await doFetch(url, { method: "POST", signal: ctrl.signal, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    } catch (e) {
+      if (signal?.aborted) throw Object.assign(new Error("Stopped."), { code: "cancelled" });
+      if (ctrl.signal.aborted) throw Object.assign(new Error("Gemini took too long to answer. Try again, or ask a shorter question."), { code: "timeout" });
+      throw Object.assign(new Error("Could not reach Google Gemini. Check your internet connection."), { code: "network" });
+    } finally { clearTimeout(timer); signal?.removeEventListener?.("abort", onAbort); }
+  }
 
   async function generate(body, signal) {
     if (!modelId) modelId = await pickGeminiModel(apiKey, doFetch);
-    const res = await doFetch(`${BASE}/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-      method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    });
+    const thinking = useThinkingConfig ? thinkingFor(modelId) : null;
+    const full = thinking ? { ...body, generationConfig: { ...(body.generationConfig || {}), thinkingConfig: thinking } } : body;
+    const res = await post(`${BASE}/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`, full, signal);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = data?.error?.message || `HTTP ${res.status}`;
+      if (res.status === 400 && thinking && /thinking/i.test(msg)) { useThinkingConfig = false; return generate(body, signal); }
       throw Object.assign(new Error(msg), { code: res.status === 429 ? "rate_limited" : /API key/i.test(msg) ? "bad_key" : "upstream_error" });
     }
     return data;
@@ -59,13 +85,19 @@ export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 8, fe
   }
 
   const run = async function ({ instructions, history = [], message, tools, onText, signal, onEvent }) {
+    let researchCount = 0;
     const allTools = [...tools];
     if (webSearch) {
       allTools.push({
         name: "research_web",
         description: "Search the web (Google) for current information: fees, exchange rates, rules, prices, procedures, news. Returns an answer with sources. Use it whenever facts may have changed or you are unsure.",
         inputSchema: { type: "object", properties: { query: { type: "string", description: "What to research" } }, required: ["query"] },
-        execute: async (args) => research(String(args.query || message), signal),
+        execute: async (args) => {
+          if (researchCount >= MAX_RESEARCH) return { note: "Research limit reached for this question. Answer now with what you have." };
+          researchCount++;
+          onEvent?.({ type: "tool", name: "research_web", tier: "T0", args, result: { status: "ok" } });
+          return research(String(args.query || message), signal);
+        },
       });
     }
     const decls = allTools.map((t) => ({ name: t.name, description: t.description, ...(cleanSchema(t.inputSchema) ? { parameters: cleanSchema(t.inputSchema) } : {}) }));
@@ -77,7 +109,8 @@ export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 8, fe
     let finalText = "";
 
     for (let round = 0; round < maxRounds; round++) {
-      const data = await generate({ systemInstruction: { parts: [{ text: instructions }] }, contents, tools: [{ functionDeclarations: decls }] }, signal);
+      const last = round === maxRounds - 1; // final round: no more tools, answer now
+      const data = await generate({ systemInstruction: { parts: [{ text: instructions }] }, contents, tools: [{ functionDeclarations: decls }], ...(last ? { toolConfig: { functionCallingConfig: { mode: "NONE" } } } : {}) }, signal);
       const parts = data.candidates?.[0]?.content?.parts || [];
       contents.push({ role: "model", parts });
       const text = parts.map((p) => p.text || "").join("");
@@ -92,10 +125,7 @@ export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 8, fe
         let out;
         try { out = tool ? await tool.execute(args || {}) : { error: `Unknown tool ${name}` }; }
         catch (e) { out = { error: e.message }; }
-        if (name === "research_web") {
-          onEvent?.({ type: "tool", name: "research_web", tier: "T0", args, result: { status: "ok" } });
-          for (const s of out.sources || []) sources.set(s.url, s.title);
-        }
+        if (name === "research_web") for (const s of out.sources || []) sources.set(s.url, s.title);
         responses.push({ functionResponse: { name, response: { result: JSON.parse(JSON.stringify(out ?? null)) } } });
       }
       contents.push({ role: "user", parts: responses });

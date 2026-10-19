@@ -401,7 +401,7 @@ export class Agent {
         reply = await this.llm({ instructions: buildInstructions(s), history: this.history.slice(-8), message, tools, onText, signal, onEvent: emit });
       } catch (e) {
         s.audit.append("system", "llm_error", { code: e?.code || "error", message: String(e?.message || e).slice(0, 200) });
-        if (e?.code === "cancelled" || e?.code === "bad_key") throw e;
+        if (["cancelled", "bad_key", "rate_limited", "timeout", "network", "upstream_error"].includes(e?.code)) throw e;
         emit({ type: "fallback", reason: e?.code || "llm_error" });
         brain = "rules";
         reply = await ruleBrain(s, text, { attachments }, emit);

@@ -143,7 +143,7 @@ async function ask(text, { attachments = [], silentUser = false } = {}) {
     live.text = r.reply; live.thinking = false; live.brain = r.brain;
   } catch (e) {
     live.thinking = false;
-    live.text = e?.code === "cancelled" ? (e.text || "Stopped.") : e?.code === "bad_key" ? "The API key was refused. Check it in Safety → Agent brain." : e?.code === "rate_limited" ? "The AI provider's free limit was reached for now. Wait a minute and try again." : `I couldn't finish that (${esc(e?.message || e?.code || "error")}). Try again, or switch to the built-in agent in Safety.`;
+    live.text = e?.code === "cancelled" ? (e.text || "Stopped.") : e?.code === "bad_key" ? "The API key was refused. Check it in Safety → Agent brain." : e?.code === "rate_limited" ? "The AI provider's free limit was reached for now. Wait a minute and try again." : e?.code === "timeout" || e?.code === "network" ? e.message : `I couldn't finish that (${esc(e?.message || e?.code || "error")}). Try again, or switch to the built-in agent in Safety.`;
   }
   state.busy = false;
   renderAll();

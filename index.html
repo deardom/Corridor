@@ -225,6 +225,10 @@ tr.best td:first-child { font-weight: 600; }
 .seg button { border: 0; background: var(--surface); padding: 6px 10px; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 
+@media (min-width: 1081px) {
+  .agent[data-closed="true"] { display: none; }
+  .app:has(.agent[data-closed="true"]) { grid-template-columns: 210px minmax(0, 1fr); }
+}
 @media (max-width: 1080px) {
   .app { grid-template-columns: 190px minmax(0, 1fr); }
   .agent { position: fixed; right: 0; top: 0; bottom: 0; width: min(420px, 100%); z-index: 20; box-shadow: -10px 0 30px rgba(0,0,0,0.12); padding-top: env(safe-area-inset-top, 0px); }
