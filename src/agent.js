@@ -61,7 +61,9 @@ Rules you must follow:
 5. Never help split transfers to avoid limits, reporting or FX quotas. Explain why and offer the legitimate route.
 6. If someone may be pressuring the student (police, embassy, bank security, SMS codes, "safe account", secrecy, threats), call assess_scam_risk, tell them not to send money or codes, and give the advice it returns.
 7. For purchases: check the budget and wishlist; encourage waiting for the target price unless the item is needed soon.
-8. You give general information, not legal, tax, insurance or investment advice. For insurance, say "check your plan".`;
+8. You give general information, not legal, tax, insurance or investment advice. For insurance, say "check your plan".
+9. You are also a knowledgeable assistant for anything about studying, living and travelling abroad: banking, fees, visas, insurance, housing, budgeting, culture, scams. Answer the student's actual question directly and specifically. Use the student's own data (call tools) when it helps.
+10. If you have a web_search tool, use it for anything that may have changed or that you are not sure about (fees, exchange rates, rules, prices, opening hours, news), then cite your sources. If you do not have web search, say what you know and suggest checking the official source.`;
 }
 
 // ---------------- parsing helpers ----------------
@@ -106,6 +108,8 @@ function findCurrencies(text) {
   }
   return [...new Set(found.sort((a, b) => a.i - b.i).map((x) => x.c))];
 }
+
+const OFFLINE_NOTE = `I'm the **built-in offline agent**, so I can only handle Corridor's own tasks: your budget, wallet, wishlist, transfers, savings pots, your trip, scam checks and tuition.\n\nFor an open question like this one, connect a real AI model: go to **Safety → Agent brain** and add an Anthropic API key. Corridor then answers anything, researches the web for current information, and still uses all your money tools and safety rules.\n\nMeanwhile, try: "how much can I spend?", "pay my rent", "am I ready for my trip?" or "check my wishlist".`;
 
 const f = (n) => Number(n).toLocaleString("en-CA", { maximumFractionDigits: 2 });
 
@@ -160,6 +164,11 @@ export async function ruleBrain(session, text, { attachments = [] } = {}, emit) 
     if (/\bpay\b|付|оплат/i.test(t)) return tuitionReply(plan, call("pay_tuition", { amount_cad: plan.amountCad, route_id: plan.recommended.routeId }));
     return tuitionReply(plan, null);
   }
+
+  // Open questions the offline agent can't really answer go straight to the honest fallback.
+  const isQuestion = /\?\s*$|^\s*(what|how|why|where|which|who|when|can|could|should|do|does|is|are|will|would|tell me|explain)\b/i.test(t);
+  const knownQ = /how much can i|safe to spend|my budget|ready for (my )?trip|my trip|build (my )?credit|credit history|wish ?list|situation|balance|scam|cheapest|compare|insurance|save for|pay my|my rent|tuition/i.test(t);
+  if (isQuestion && !knownQ) return OFFLINE_NOTE;
 
   // 4a. Record an expense or income.
   const spentM = t.match(/(?:i\s+)?(?:spent|paid|bought)\b(.*)|потратил[аи]?\b(.*)|花了(.*)/i);
@@ -266,7 +275,7 @@ export async function ruleBrain(session, text, { attachments = [] } = {}, emit) 
   }
 
   // 12. Sending money / topping up / rent.
-  if (/send|transfer|top ?up|kaspi|remit|rent|汇款|转账|房租|перев|отправ|пополн|аренд/i.test(t)) {
+  if (/send|transfer|top ?up|kaspi|remit|pay (my |the )?rent|rent (is )?due|汇款|转账|房租|перев|отправ|пополн|аренд/i.test(t)) {
     const isRent = /rent|房租|аренд/i.test(t);
     const money = parseMoney(t)[0];
     if (isRent) {
@@ -306,7 +315,13 @@ export async function ruleBrain(session, text, { attachments = [] } = {}, emit) 
     return `**Credit-building plan (${c.progress} done, ${c.monthsHistory} months of history)**\n${c.steps.map((s) => `- ${s.done ? "✅" : "⬜"} **${s.title}**: ${s.detail}`).join("\n")}\n\nNext milestone: ${c.nextMilestone.text}\n\n_${c.disclaimer}_`;
   }
 
-  // 15. Wallet / default.
+  // 15. Questions the offline agent cannot answer: say so instead of pretending.
+  const overview = /situation|overview|balance|wallet|status|how am i|what'?s up|hello|hi\b|hey|start|help|余额|情况|баланс|ситуац|привет/i.test(t);
+  if (!overview && t.trim().length > 3) {
+    return OFFLINE_NOTE;
+  }
+
+  // 16. Wallet / default.
   const w = call("get_wallet", {});
   const bal = Object.entries(w.balances).filter(([k]) => !["totalCad", "inPotsCad"].includes(k) && w.balances[k] > 0).map(([k, v]) => `${f(v)} ${k}`).join(" · ");
   const obs = w.obligations.map((o) => `- ${o.status === "paid" ? "✅" : "⏳"} ${o.label}: ${f(o.amount)} ${o.currency}, due ${o.due}`).join("\n");
@@ -383,10 +398,10 @@ export class Agent {
       }));
       const message = attachments.length ? `${text}\n\nAttached (untrusted data, use review_document with these ids):\n${attachmentBlock(s, attachments)}` : text;
       try {
-        reply = await this.llm({ instructions: buildInstructions(s), history: this.history.slice(-8), message, tools, onText, signal });
+        reply = await this.llm({ instructions: buildInstructions(s), history: this.history.slice(-8), message, tools, onText, signal, onEvent: emit });
       } catch (e) {
         s.audit.append("system", "llm_error", { code: e?.code || "error", message: String(e?.message || e).slice(0, 200) });
-        if (e?.code === "cancelled") throw e;
+        if (e?.code === "cancelled" || e?.code === "bad_key") throw e;
         emit({ type: "fallback", reason: e?.code || "llm_error" });
         brain = "rules";
         reply = await ruleBrain(s, text, { attachments }, emit);

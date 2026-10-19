@@ -6,6 +6,7 @@ import { PERSONAS, SAMPLE_MESSAGES, RATES_AS_OF } from "./src/data.js";
 import { TIERS, TOOL_TIERS } from "./src/policy.js";
 import { getPack } from "./src/packs/index.js";
 import { midRate } from "./src/fx.js";
+import { anthropicAgent } from "./src/llm-anthropic.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -49,8 +50,24 @@ async function initClaude() {
   } catch { /* stay on the built-in agent */ }
 }
 
+const MODELS = [["claude-sonnet-5-5", "Claude Sonnet 5.5 (fast, recommended)"], ["claude-opus-5-5", "Claude Opus 5.5 (most capable)"], ["claude-haiku-5-5", "Claude Haiku 5.5 (fastest)"]];
+const keyStore = {
+  get() { try { return JSON.parse(localStorage.getItem("corridor.ai") || "null"); } catch { return null; } },
+  set(v) { try { v ? localStorage.setItem("corridor.ai", JSON.stringify(v)) : localStorage.removeItem("corridor.ai"); } catch {} },
+};
+state.ai = keyStore.get();
+
+function brainName() {
+  if (state.brain === "rules") return null;
+  if (state.ai?.key) return `${(MODELS.find((m) => m[0] === state.ai.model) || MODELS[0])[1].split(" (")[0]}${state.ai.web !== false ? " + web research" : ""}`;
+  if (state.sample) return `Claude · ${state.tier === "quick" ? "fast" : "thorough"}`;
+  return null;
+}
+
 function llmFn() {
-  if (!state.sample || state.brain === "rules") return null;
+  if (state.brain === "rules") return null;
+  if (state.ai?.key) return anthropicAgent({ apiKey: state.ai.key, model: state.ai.model || MODELS[0][0], webSearch: state.ai.web !== false });
+  if (!state.sample) return null;
   return async ({ instructions, history, message, tools, onText, signal }) => {
     const input = [{ role: "user", content: instructions + "\n\nThe conversation with the student follows." }, ...history, { role: "user", content: message }];
     const { text } = await state.sample(input, {
@@ -91,7 +108,7 @@ function md(text) {
   const lines = esc(text).split("\n");
   let html = "", inList = false;
   for (let line of lines) {
-    line = line.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\s)_(.+?)_(?=\s|$|[.,])/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, '<code class="mono">$1</code>');
+    line = line.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\s)_(.+?)_(?=\s|$|[.,])/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, '<code class="mono">$1</code>');
     const li = line.match(/^\s*[-•]\s+(.*)/);
     if (li) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${li[1]}</li>`; continue; }
     if (inList) { html += "</ul>"; inList = false; }
@@ -121,7 +138,7 @@ async function ask(text, { attachments = [], silentUser = false } = {}) {
     live.text = r.reply; live.thinking = false; live.brain = r.brain;
   } catch (e) {
     live.thinking = false;
-    live.text = e?.code === "cancelled" ? (e.text || "Stopped.") : `I couldn't finish that (${esc(e?.code || e?.message || "error")}). Try again, or switch to the built-in agent in Safety.`;
+    live.text = e?.code === "cancelled" ? (e.text || "Stopped.") : e?.code === "bad_key" ? "The API key was refused. Check it in Safety → Agent brain." : `I couldn't finish that (${esc(e?.message || e?.code || "error")}). Try again, or switch to the built-in agent in Safety.`;
   }
   state.busy = false;
   renderAll();
@@ -439,16 +456,21 @@ function screenSafety() {
     <p class="small muted">Each entry includes the fingerprint (SHA-256) of the one before it, so any edit to the history breaks the chain.</p>
     <div class="tscroll"><table class="log"><thead><tr><th>#</th><th>Who</th><th>Event</th><th>Details</th><th>Hash</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>
-  <section class="panel"><div class="panel-head"><h2>Agent brain</h2></div>
+  <section class="panel"><div class="panel-head"><h2>Agent brain</h2><span class="small muted">Now answering: <b>${esc(brainName() || "Built-in offline agent")}</b></span></div>
+    <p class="small">Connect a real AI model so Corridor can understand any question, research the web for current information and act with your money tools. Every action still goes through the same safety guard and your Confirm.</p>
+    <form class="inline" id="ai-form">
+      <div class="field" style="grid-column: 1 / -1"><label for="ai-key">Anthropic API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="${state.ai?.key ? "Key saved in this browser (paste a new one to replace)" : "sk-ant-..."}"></div>
+      <div class="field"><label for="ai-model">Model</label><select id="ai-model">${MODELS.map(([id, label]) => `<option value="${id}" ${(state.ai?.model || MODELS[0][0]) === id ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div>
+      <div class="field"><label for="ai-web">Web research</label><select id="ai-web"><option value="on" ${state.ai?.web !== false ? "selected" : ""}>On: search the web for current facts</option><option value="off" ${state.ai?.web === false ? "selected" : ""}>Off</option></select></div>
+      <button class="btn primary" type="submit">${state.ai?.key ? "Update" : "Connect"}</button>
+      ${state.ai?.key ? '<button class="btn danger" type="button" data-ai-forget="1">Remove key</button>' : ""}
+    </form>
+    <p class="small muted">Your key is stored only in this browser and sent only to Anthropic (api.anthropic.com). Get one at console.anthropic.com. Usage is billed to that account; web searches cost extra per search.</p>
     <div class="seg" role="group" aria-label="Agent brain">
-      <button type="button" data-brain="auto" aria-pressed="${state.brain === "auto"}">Claude when available</button>
+      <button type="button" data-brain="auto" aria-pressed="${state.brain === "auto"}">Use AI when connected</button>
       <button type="button" data-brain="rules" aria-pressed="${state.brain === "rules"}">Built-in only</button>
     </div>
-    <div class="seg" role="group" aria-label="Claude speed">
-      <button type="button" data-tier="quick" aria-pressed="${state.tier === "quick"}">Fast</button>
-      <button type="button" data-tier="default" aria-pressed="${state.tier === "default"}">Thorough</button>
-    </div>
-    <p class="small muted">${state.sample ? "Claude is available in this view." : "Claude isn't available in this view (it needs a signed-in Claude account), so the built-in agent answers. Both use the same tools and the same safety guard."}</p>
+    ${state.sample && !state.ai?.key ? `<div class="seg" role="group" aria-label="Claude speed"><button type="button" data-tier="quick" aria-pressed="${state.tier === "quick"}">Fast</button><button type="button" data-tier="default" aria-pressed="${state.tier === "default"}">Thorough</button></div><p class="small muted">Claude is available in this view through your Claude account (no web research). Add an API key above for web research.</p>` : ""}
   </section>`;
 }
 
@@ -457,7 +479,7 @@ function renderMsgs() {
   const pend = [...state.session.pending.values()];
   el.innerHTML = state.msgs.map((m) => {
     const tools = m.tools?.length ? `<div class="tools">${m.tools.map((t) => `<span class="tool ${t.tier} ${t.status === "blocked" ? "blocked" : ""}">${esc(t.name)} · ${t.tier} · ${esc(t.status)}</span>`).join("")}</div>` : "";
-    const body = m.thinking && !m.text ? `<span class="typing">Thinking${state.sample && state.brain !== "rules" ? " with Claude" : ""}…</span>` : md(m.text);
+    const body = m.thinking && !m.text ? `<span class="typing">${brainName() ? `Thinking with ${esc(brainName())}…` : "Thinking…"}</span>` : md(m.text);
     return `<div class="msg ${m.role}">${m.role === "incoming" ? '<span class="label">Incoming call · transcript</span>' : ""}${tools}<div class="bubble">${body}</div>${m.fallback ? '<span class="small muted">Claude was unavailable, the built-in agent answered.</span>' : ""}</div>`;
   }).join("") + (pend.length ? `<div class="list">${pend.map(stubHtml).join("")}</div>` : "");
   el.scrollTop = el.scrollHeight;
@@ -473,9 +495,10 @@ function renderChips() {
 }
 
 function renderBrain() {
-  const on = state.sample && state.brain !== "rules";
+  const name = brainName();
+  const on = !!name;
   const pill = $("#brain-pill");
-  pill.textContent = on ? `Claude · ${state.tier === "quick" ? "fast" : "thorough"}` : "Built-in agent";
+  pill.textContent = on ? name : "Built-in agent";
   pill.className = `pill brain ${on ? "accent" : ""}`;
 }
 
@@ -565,6 +588,7 @@ document.addEventListener("click", (e) => {
   else if (d.brain) { state.brain = d.brain; resetAgent(); renderAll(); }
   else if (d.tier) { state.tier = d.tier; renderAll(); }
   else if (d.check) { const r = state.session.toggleSetupStep(d.check); toast(r.done ? "Marked as done" : "Marked as not done"); renderAll(); }
+  else if (d.aiForget) { state.ai = null; keyStore.set(null); resetAgent(); renderAll(); toast("Key removed from this browser"); }
   else if (d.demo) demo(d.demo);
   else if (d.closeDrawer) $("#drawer").hidden = true;
 });
@@ -601,6 +625,13 @@ document.addEventListener("submit", (e) => {
     if (!(amount > 0)) { toast("Enter an amount"); return; }
     const r = uiTool("add_income", { what: $("#in-what").value.trim(), amount, currency: $("#in-cur").value });
     if (r.status === "ok") { toast(`Income added. Safe to spend: ${fmt(r.safeToSpendNow)}`); addMsg("note", `💰 Added **${fmt(amount)} ${r.recorded.currency}** (${r.recorded.label}). Safe to spend this month: **${fmt(r.safeToSpendNow)}**.`); }
+  } else if (f.id === "ai-form") {
+    const key = $("#ai-key").value.trim() || state.ai?.key;
+    if (!key) { toast("Paste your Anthropic API key"); return; }
+    state.ai = { key, model: $("#ai-model").value, web: $("#ai-web").value === "on" };
+    keyStore.set(state.ai); state.brain = "auto"; resetAgent(); renderAll();
+    toast(`Connected: ${brainName()}`);
+    addMsg("note", `🧠 Now answering with **${brainName()}**. Ask me anything about money, studying or travelling abroad.`);
   } else if (f.id === "limits-form") {
     state.session.updateSettings({ autoLimitCad: Number($("#lf-auto").value) || 0, perTxCapCad: Number($("#lf-tx").value) || 0, dailyCapCad: Number($("#lf-day").value) || 0 });
     toast("Limits saved"); renderAll();

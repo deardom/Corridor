@@ -229,3 +229,23 @@ test("recording expenses and income updates wallet and safe-to-spend", async () 
   await a.handle("I got paid 120 dollars from tutoring");
   assert.equal(s.ledger.wallets.CAD, 4850 + 120);
 });
+
+test("AI agent adapter runs Corridor tools through the guard and returns the final answer", async () => {
+  const { anthropicAgent } = await import("../src/llm-anthropic.js");
+  const calls = [];
+  const replies = [
+    { stop_reason: "tool_use", content: [{ type: "text", text: "Let me check." }, { type: "tool_use", id: "t1", name: "send_money", input: { payee_id: "p_self_host", from: "CAD", to: "KZT", amount: 100 } }] },
+    { stop_reason: "end_turn", content: [{ type: "text", text: "Ready for your confirmation.", citations: [{ url: "https://example.org/fees", title: "Fees" }] }] },
+  ];
+  const fetchImpl = async (url, opts) => { calls.push(JSON.parse(opts.body)); return { ok: true, json: async () => replies.shift() }; };
+  const s = new Session({ persona: "christina" });
+  const a = new Agent(s, { llm: anthropicAgent({ apiKey: "test", fetchImpl }) });
+  const r = await a.handle("Send 100 dollars to my Kaspi");
+  assert.equal(r.brain, "llm");
+  assert.match(r.reply, /Ready for your confirmation/);
+  assert.match(r.reply, /example\.org/);
+  assert.equal(s.pending.size, 1);                       // proposed, not executed
+  assert.equal(s.ledger.wallets.CAD, 4850);
+  assert.ok(calls[0].tools.some((t) => t.name === "web_search"));
+  assert.equal(calls[1].messages.at(-1).content[0].type, "tool_result");
+});

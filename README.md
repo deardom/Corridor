@@ -22,9 +22,19 @@ Christina is a Canadian student on exchange in Almaty who is planning a trip to 
 | 7 | Scam shield | Detects fake police, embassy and "bank security" calls, SMS-code requests, "safe accounts" and virtual kidnapping, in English, Chinese and Russian, and blocks the transfer |
 | 8 | Tuition (reverse direction) | For a Chinese student in Canada: reads the invoice, checks it against the school's verified account, handles the China FX quota with documents, refuses to split transfers |
 
+## Connect a real AI model (any question, with web research)
+
+Out of the box the app uses a built-in offline agent for its own tasks. To let Corridor answer any question and research current information on the web:
+
+1. Open the app, go to **Safety → Agent brain**.
+2. Paste an **Anthropic API key** (from console.anthropic.com), pick a model (Claude Sonnet 5.5 recommended) and keep **Web research** on.
+3. Ask anything in the chat. The agent plans with Claude, searches the web when facts may have changed (and cites its sources), and uses Corridor's 20 money tools. Every action still passes the safety guard and needs your Confirm.
+
+The key stays in your browser and is sent only to api.anthropic.com. In the Claude-hosted demo, signed-in viewers get Claude without a key (without web research). From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
+
 ## How it works: four roles
 
-1. **Planner**: a language model (Claude, or any OpenAI-compatible model such as DeepSeek or Qwen) understands the request and chains 20 tools.
+1. **Planner**: a language model (Claude through the Anthropic API with web search, or any OpenAI-compatible model such as DeepSeek or Qwen) understands the request, researches when needed and chains 20 tools.
 2. **Watchers**: a price watcher, an exchange-rate watcher, a weekly savings scheduler and a bill monitor react to events and propose actions on their own.
 3. **Specialists**: a scam shield, a document inspector and a compliance checker report risks.
 4. **Guard**: a deterministic rule engine decides; the model cannot override it.
