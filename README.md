@@ -104,4 +104,4 @@ Mid-market exchange rates are an illustrative snapshot, and a few values are mar
 
 ## Team
 
-Two Canadian, one Kazakh and two Chinese students. MIT License.
+Team Silk & Maple: two Canadian, one Kazakh and two Chinese students. MIT License.
