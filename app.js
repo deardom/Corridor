@@ -55,7 +55,9 @@ const keyStore = {
   get() { try { return JSON.parse(localStorage.getItem("corridor.ai") || "null"); } catch { return null; } },
   set(v) { try { v ? localStorage.setItem("corridor.ai", JSON.stringify(v)) : localStorage.removeItem("corridor.ai"); } catch {} },
 };
-state.ai = keyStore.get();
+// Inside Claude, pages can't call outside services, so the API key option is for the GitHub / self-hosted version.
+const IN_CLAUDE = !!window.claude;
+state.ai = IN_CLAUDE ? null : keyStore.get();
 
 function brainName() {
   if (state.brain === "rules") return null;
@@ -458,14 +460,14 @@ function screenSafety() {
   </section>
   <section class="panel"><div class="panel-head"><h2>Agent brain</h2><span class="small muted">Now answering: <b>${esc(brainName() || "Built-in offline agent")}</b></span></div>
     <p class="small">Connect a real AI model so Corridor can understand any question, research the web for current information and act with your money tools. Every action still goes through the same safety guard and your Confirm.</p>
-    <form class="inline" id="ai-form">
+    ${IN_CLAUDE ? `<p class="small">In this Claude-hosted version, Corridor uses Claude through your Claude account. For web research with your own API key, open the GitHub version (deardom.github.io/Corridor).</p>` : `<form class="inline" id="ai-form">
       <div class="field" style="grid-column: 1 / -1"><label for="ai-key">Anthropic API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="${state.ai?.key ? "Key saved in this browser (paste a new one to replace)" : "sk-ant-..."}"></div>
       <div class="field"><label for="ai-model">Model</label><select id="ai-model">${MODELS.map(([id, label]) => `<option value="${id}" ${(state.ai?.model || MODELS[0][0]) === id ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div>
       <div class="field"><label for="ai-web">Web research</label><select id="ai-web"><option value="on" ${state.ai?.web !== false ? "selected" : ""}>On: search the web for current facts</option><option value="off" ${state.ai?.web === false ? "selected" : ""}>Off</option></select></div>
       <button class="btn primary" type="submit">${state.ai?.key ? "Update" : "Connect"}</button>
       ${state.ai?.key ? '<button class="btn danger" type="button" data-ai-forget="1">Remove key</button>' : ""}
     </form>
-    <p class="small muted">Your key is stored only in this browser and sent only to Anthropic (api.anthropic.com). Get one at console.anthropic.com. Usage is billed to that account; web searches cost extra per search.</p>
+    <p class="small muted">Your key is stored only in this browser and sent only to Anthropic (api.anthropic.com). Get one at console.anthropic.com. Usage is billed to that account; web searches cost extra per search.</p>`}
     <div class="seg" role="group" aria-label="Agent brain">
       <button type="button" data-brain="auto" aria-pressed="${state.brain === "auto"}">Use AI when connected</button>
       <button type="button" data-brain="rules" aria-pressed="${state.brain === "rules"}">Built-in only</button>
