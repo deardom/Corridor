@@ -27,14 +27,16 @@ Christina is a Canadian student on exchange in Almaty who is planning a trip to 
 Out of the box the app uses a built-in offline agent for its own tasks. To let Corridor answer any question and research current information on the web:
 
 1. Open the app, go to **Safety → Agent brain**.
-2. Paste an **Anthropic API key** (from console.anthropic.com), pick a model (Claude Sonnet 5.5 recommended) and keep **Web research** on.
-3. Ask anything in the chat. The agent plans with Claude, searches the web when facts may have changed (and cites its sources), and uses Corridor's 20 money tools. Every action still passes the safety guard and needs your Confirm.
+2. Choose a provider and paste its key:
+   * **Google Gemini (free):** get a key at aistudio.google.com with a Google account, no credit card. Corridor picks the newest Flash model and researches with Google Search. Free-tier limits apply, and Google may use free-tier prompts to improve its products.
+   * **Anthropic Claude (paid):** key from console.anthropic.com; pick a model (Claude Sonnet 5.5 recommended).
+3. Keep **Web research** on and ask anything in the chat. The agent plans with the model, searches the web when facts may have changed (and cites its sources), and uses Corridor's 20 money tools. Every action still passes the safety guard and needs your Confirm.
 
-The key stays in your browser and is sent only to api.anthropic.com. In the Claude-hosted demo, signed-in viewers get Claude without a key (without web research). From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
+The key stays in your browser and is sent only to the provider you chose. In the Claude-hosted demo, signed-in viewers get Claude without a key (without web research). From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
 
 ## How it works: four roles
 
-1. **Planner**: a language model (Claude through the Anthropic API with web search, or any OpenAI-compatible model such as DeepSeek or Qwen) understands the request, researches when needed and chains 20 tools.
+1. **Planner**: a language model (Google Gemini on its free tier with Google Search research, Claude through the Anthropic API with web search, or any OpenAI-compatible model such as DeepSeek or Qwen) understands the request, researches when needed and chains 20 tools.
 2. **Watchers**: a price watcher, an exchange-rate watcher, a weekly savings scheduler and a bill monitor react to events and propose actions on their own.
 3. **Specialists**: a scam shield, a document inspector and a compliance checker report risks.
 4. **Guard**: a deterministic rule engine decides; the model cannot override it.
@@ -48,7 +50,7 @@ The language model **proposes**; a deterministic policy engine **decides**; the 
 Requirements: Node.js 18 or newer. No dependencies to install.
 
 ```bash
-npm test            # 37 automated tests
+npm test            # 39 automated tests
 npm run evidence    # regenerates evidence/ (sandbox logs for every demo scenario)
 npm start           # web app at http://localhost:8080
 npm run cli         # chat with the agent in a terminal (built-in agent)
@@ -71,6 +73,8 @@ index.html, app.js      web app (screens, chat, confirmation cards, demo control
 src/session.js          sandbox session: tools, pending confirmations, simulated world
 src/policy.js           the guard: permission tiers and the nine checks
 src/agent.js            agent: tool specs, LLM instructions, deterministic rule brain
+src/llm-gemini.js       Gemini adapter (free tier): function calling + Google Search research
+src/llm-anthropic.js    Claude adapter: tool use + web search
 src/fx.js               route quotes against mid-market, target-amount solver
 src/budget.js           safe-to-spend, savings pots, wishlist verdicts
 src/trip.js             trip readiness and cost of each way to pay
@@ -87,7 +91,7 @@ docs/                   technical documentation, security self-assessment
 
 ## Test cases
 
-`npm test` runs 37 tests, including: FX maths and fee rules (Kaspi minimum fee, Alipay fee above ¥200), traps never ranked first, country pack shape, scam detection in three languages, poisoned invoice detection, structuring detection in three languages, China FX quota rules, tier T3 always denied, no money movement without confirmation, unverified payees and caps blocked, advise-only mode, the agent cannot change its own settings, automatic mode limited to small actions on the student's own money, re-check at confirmation time, audit tamper detection, masking of account numbers, budget and wishlist logic, and every demo scenario end to end.
+`npm test` runs 39 tests, including: FX maths and fee rules (Kaspi minimum fee, Alipay fee above ¥200), traps never ranked first, country pack shape, scam detection in three languages, poisoned invoice detection, structuring detection in three languages, China FX quota rules, tier T3 always denied, no money movement without confirmation, unverified payees and caps blocked, advise-only mode, the agent cannot change its own settings, automatic mode limited to small actions on the student's own money, re-check at confirmation time, audit tamper detection, masking of account numbers, budget and wishlist logic, and every demo scenario end to end.
 
 ## Data sources and limits
 

@@ -7,6 +7,7 @@ import { TIERS, TOOL_TIERS } from "./src/policy.js";
 import { getPack } from "./src/packs/index.js";
 import { midRate } from "./src/fx.js";
 import { anthropicAgent } from "./src/llm-anthropic.js";
+import { geminiAgent } from "./src/llm-gemini.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -61,6 +62,7 @@ state.ai = IN_CLAUDE ? null : keyStore.get();
 
 function brainName() {
   if (state.brain === "rules") return null;
+  if (state.ai?.key && state.ai.provider === "gemini") return `Google Gemini${state.ai.web !== false ? " + web research" : ""}`;
   if (state.ai?.key) return `${(MODELS.find((m) => m[0] === state.ai.model) || MODELS[0])[1].split(" (")[0]}${state.ai.web !== false ? " + web research" : ""}`;
   if (state.sample) return `Claude · ${state.tier === "quick" ? "fast" : "thorough"}`;
   return null;
@@ -68,6 +70,7 @@ function brainName() {
 
 function llmFn() {
   if (state.brain === "rules") return null;
+  if (state.ai?.key && state.ai.provider === "gemini") return geminiAgent({ apiKey: state.ai.key, webSearch: state.ai.web !== false });
   if (state.ai?.key) return anthropicAgent({ apiKey: state.ai.key, model: state.ai.model || MODELS[0][0], webSearch: state.ai.web !== false });
   if (!state.sample) return null;
   return async ({ instructions, history, message, tools, onText, signal }) => {
@@ -140,7 +143,7 @@ async function ask(text, { attachments = [], silentUser = false } = {}) {
     live.text = r.reply; live.thinking = false; live.brain = r.brain;
   } catch (e) {
     live.thinking = false;
-    live.text = e?.code === "cancelled" ? (e.text || "Stopped.") : e?.code === "bad_key" ? "The API key was refused. Check it in Safety → Agent brain." : `I couldn't finish that (${esc(e?.message || e?.code || "error")}). Try again, or switch to the built-in agent in Safety.`;
+    live.text = e?.code === "cancelled" ? (e.text || "Stopped.") : e?.code === "bad_key" ? "The API key was refused. Check it in Safety → Agent brain." : e?.code === "rate_limited" ? "The AI provider's free limit was reached for now. Wait a minute and try again." : `I couldn't finish that (${esc(e?.message || e?.code || "error")}). Try again, or switch to the built-in agent in Safety.`;
   }
   state.busy = false;
   renderAll();
@@ -461,13 +464,14 @@ function screenSafety() {
   <section class="panel"><div class="panel-head"><h2>Agent brain</h2><span class="small muted">Now answering: <b>${esc(brainName() || "Built-in offline agent")}</b></span></div>
     <p class="small">Connect a real AI model so Corridor can understand any question, research the web for current information and act with your money tools. Every action still goes through the same safety guard and your Confirm.</p>
     ${IN_CLAUDE ? `<p class="small">In this Claude-hosted version, Corridor uses Claude through your Claude account. For web research with your own API key, open the GitHub version (deardom.github.io/Corridor).</p>` : `<form class="inline" id="ai-form">
-      <div class="field" style="grid-column: 1 / -1"><label for="ai-key">Anthropic API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="${state.ai?.key ? "Key saved in this browser (paste a new one to replace)" : "sk-ant-..."}"></div>
-      <div class="field"><label for="ai-model">Model</label><select id="ai-model">${MODELS.map(([id, label]) => `<option value="${id}" ${(state.ai?.model || MODELS[0][0]) === id ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div>
+      <div class="field"><label for="ai-provider">AI provider</label><select id="ai-provider"><option value="gemini" ${state.ai?.provider !== "anthropic" ? "selected" : ""}>Google Gemini (free tier)</option><option value="anthropic" ${state.ai?.provider === "anthropic" ? "selected" : ""}>Anthropic Claude (paid)</option></select></div>
+      <div class="field" style="grid-column: span 2"><label for="ai-key">API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="${state.ai?.key ? "Key saved in this browser (paste a new one to replace)" : "Paste your key"}"></div>
+      <div class="field"><label for="ai-model">Claude model</label><select id="ai-model">${MODELS.map(([id, label]) => `<option value="${id}" ${(state.ai?.model || MODELS[0][0]) === id ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div>
       <div class="field"><label for="ai-web">Web research</label><select id="ai-web"><option value="on" ${state.ai?.web !== false ? "selected" : ""}>On: search the web for current facts</option><option value="off" ${state.ai?.web === false ? "selected" : ""}>Off</option></select></div>
       <button class="btn primary" type="submit">${state.ai?.key ? "Update" : "Connect"}</button>
       ${state.ai?.key ? '<button class="btn danger" type="button" data-ai-forget="1">Remove key</button>' : ""}
     </form>
-    <p class="small muted">Your key is stored only in this browser and sent only to Anthropic (api.anthropic.com). Get one at console.anthropic.com. Usage is billed to that account; web searches cost extra per search.</p>`}
+    <p class="small muted"><b>Free:</b> get a Gemini key at aistudio.google.com (Google account, no card). Free-tier limits apply, and Google may use free-tier prompts to improve its products. <b>Paid:</b> Claude keys at console.anthropic.com. Your key is stored only in this browser and sent only to that provider.</p>`}
     <div class="seg" role="group" aria-label="Agent brain">
       <button type="button" data-brain="auto" aria-pressed="${state.brain === "auto"}">Use AI when connected</button>
       <button type="button" data-brain="rules" aria-pressed="${state.brain === "rules"}">Built-in only</button>
@@ -630,7 +634,7 @@ document.addEventListener("submit", (e) => {
   } else if (f.id === "ai-form") {
     const key = $("#ai-key").value.trim() || state.ai?.key;
     if (!key) { toast("Paste your Anthropic API key"); return; }
-    state.ai = { key, model: $("#ai-model").value, web: $("#ai-web").value === "on" };
+    state.ai = { provider: $("#ai-provider").value, key, model: $("#ai-model").value, web: $("#ai-web").value === "on" };
     keyStore.set(state.ai); state.brain = "auto"; resetAgent(); renderAll();
     toast(`Connected: ${brainName()}`);
     addMsg("note", `🧠 Now answering with **${brainName()}**. Ask me anything about money, studying or travelling abroad.`);

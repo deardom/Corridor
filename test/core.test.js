@@ -249,3 +249,29 @@ test("AI agent adapter runs Corridor tools through the guard and returns the fin
   assert.ok(calls[0].tools.some((t) => t.name === "web_search"));
   assert.equal(calls[1].messages.at(-1).content[0].type, "tool_result");
 });
+
+test("Gemini adapter: runs Corridor tools and web research, cites sources", async () => {
+  const { geminiAgent } = await import("../src/llm-gemini.js");
+  const calls = [];
+  let round = 0;
+  const fetchImpl = async (url, opts) => {
+    const body = JSON.parse(opts.body);
+    calls.push({ url, body });
+    const ok = (data) => ({ ok: true, status: 200, json: async () => data });
+    if (body.tools?.[0]?.google_search) {
+      return ok({ candidates: [{ content: { parts: [{ text: "Rent in Almaty averages 250k KZT." }] }, groundingMetadata: { groundingChunks: [{ web: { uri: "https://example.org/rent", title: "Rent guide" } }] } }] });
+    }
+    round++;
+    if (round === 1) return ok({ candidates: [{ content: { parts: [{ functionCall: { name: "get_wallet", args: {} } }, { functionCall: { name: "research_web", args: { query: "rent Almaty" } } }] } }] });
+    return ok({ candidates: [{ content: { parts: [{ text: "You have enough for rent." }] } }] });
+  };
+  const run = geminiAgent({ apiKey: "k", model: "gemini-test-flash", fetchImpl });
+  let walletCalled = false;
+  const out = await run({ instructions: "sys", message: "Can I afford rent?", tools: [{ name: "get_wallet", description: "wallet", inputSchema: { type: "object", properties: {} }, execute: async () => { walletCalled = true; return { CAD: 100 }; } }] });
+  assert.ok(walletCalled);
+  assert.match(out, /enough for rent/);
+  assert.match(out, /Sources:[\s\S]*example\.org\/rent/);
+  assert.ok(calls.every((c) => c.url.includes("gemini-test-flash")));
+  const second = calls.filter((c) => c.body.contents && !c.body.tools?.[0]?.google_search)[1];
+  assert.ok(second.body.contents.at(-1).parts.some((p) => p.functionResponse?.name === "get_wallet"));
+});

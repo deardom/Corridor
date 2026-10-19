@@ -81,7 +81,7 @@ The confirmation (`Session.confirm`) re-runs all nine checks with the state at t
 ## 6. How to verify
 
 ```bash
-npm test             # 37 tests including all controls above
+npm test             # 39 tests including all controls above
 npm run evidence     # evidence/sandbox-log.jsonl and transcripts for 11 scenarios
 ```
 

@@ -146,7 +146,7 @@ A pack is one file exporting: code, currency, local payment rails, routes, setup
 
 ## 7. Testing and evidence
 
-* `npm test`: 37 tests (Section "Test cases" in the README).
+* `npm test`: 39 tests (Section "Test cases" in the README).
 * `npm run evidence`: runs the 11 demo scenarios with the deterministic brain and writes `evidence/sandbox-log.jsonl` (every audit entry), `evidence/transcripts.md` (readable conversation and outcomes) and `evidence/summary.json` (statuses and audit chain verification). Re-running produces identical files.
 
 ## 8. Limitations and next steps

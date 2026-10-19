@@ -63,7 +63,7 @@ Rules you must follow:
 7. For purchases: check the budget and wishlist; encourage waiting for the target price unless the item is needed soon.
 8. You give general information, not legal, tax, insurance or investment advice. For insurance, say "check your plan".
 9. You are also a knowledgeable assistant for anything about studying, living and travelling abroad: banking, fees, visas, insurance, housing, budgeting, culture, scams. Answer the student's actual question directly and specifically. Use the student's own data (call tools) when it helps.
-10. If you have a web_search tool, use it for anything that may have changed or that you are not sure about (fees, exchange rates, rules, prices, opening hours, news), then cite your sources. If you do not have web search, say what you know and suggest checking the official source.`;
+10. If you have a web_search or research_web tool, use it for anything that may have changed or that you are not sure about (fees, exchange rates, rules, prices, opening hours, news), then cite your sources. If you do not have web search, say what you know and suggest checking the official source.`;
 }
 
 // ---------------- parsing helpers ----------------
@@ -109,7 +109,7 @@ function findCurrencies(text) {
   return [...new Set(found.sort((a, b) => a.i - b.i).map((x) => x.c))];
 }
 
-const OFFLINE_NOTE = `I'm the **built-in offline agent**, so I can only handle Corridor's own tasks: your budget, wallet, wishlist, transfers, savings pots, your trip, scam checks and tuition.\n\nFor an open question like this one, connect a real AI model: go to **Safety → Agent brain** and add an Anthropic API key. Corridor then answers anything, researches the web for current information, and still uses all your money tools and safety rules.\n\nMeanwhile, try: "how much can I spend?", "pay my rent", "am I ready for my trip?" or "check my wishlist".`;
+const OFFLINE_NOTE = `I'm the **built-in offline agent**, so I can only handle Corridor's own tasks: your budget, wallet, wishlist, transfers, savings pots, your trip, scam checks and tuition.\n\nFor an open question like this one, connect a real AI model: go to **Safety → Agent brain** and add a free Google Gemini key or an Anthropic key. Corridor then answers anything, researches the web for current information, and still uses all your money tools and safety rules.\n\nMeanwhile, try: "how much can I spend?", "pay my rent", "am I ready for my trip?" or "check my wishlist".`;
 
 const f = (n) => Number(n).toLocaleString("en-CA", { maximumFractionDigits: 2 });
 
