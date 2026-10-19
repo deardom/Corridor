@@ -142,7 +142,9 @@ h3 { font-size: 0.95rem; font-weight: 600; }
 .bar.over i { background: var(--bad); } .bar.near i { background: var(--warn); }
 .cat { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 0.88rem; }
 .list { display: flex; flex-direction: column; gap: 10px; }
-.check { display: flex; gap: 10px; align-items: flex-start; }
+.check { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; background: none; border: 0; padding: 6px; margin: -6px; border-radius: 8px; color: inherit; }
+.check:hover { background: var(--sunken); }
+.check .d { display: block; margin: 2px 0 0; font-size: 0.83rem; color: var(--muted); }
 .check .box { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--line); flex: none; display: grid; place-items: center; font-size: 0.75rem; margin-top: 1px; }
 .check.done .box { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
 .check p { margin: 2px 0 0; font-size: 0.83rem; color: var(--muted); }

@@ -44,7 +44,7 @@ export function tripReadiness(ledger, rates) {
   const health = pots.find((p) => p.kind === "health");
   const checklist = [
     ...pack.setupChecklist.map((c) => ({ ...c, done: ledger.setupDone.includes(c.id) || (c.id === "cn_card" && hasNoFxCard) })),
-    { id: "insurance", title: "Travel medical insurance for the trip dates", detail: [pack.healthInsurance.visiting, home.healthInsurance.outgoing].filter(Boolean).join(" "), done: !!health && health.saved >= health.target },
+    { id: "insurance", title: "Travel medical insurance for the trip dates", detail: [pack.healthInsurance.visiting, home.healthInsurance.outgoing].filter(Boolean).join(" "), done: ledger.setupDone.includes("insurance") || (!!health && health.saved >= health.target) },
   ];
   const spend = 6000;
   const costs = tripPaymentCosts(pack.currency, spend, ledger.persona.homeAccount.currency, rates, card?.fxFeePct ?? 2.5);

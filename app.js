@@ -244,7 +244,7 @@ function screenHome() {
   ${alerts ? `<section class="panel"><div class="panel-head"><h2>Needs attention</h2><span class="small muted">Corridor checks these every day</span></div><div class="list">${alerts}</div></section>` : ""}
   <div class="grid2">
     <section class="panel"><div class="panel-head"><h2>Coming up</h2></div><div class="list">${w.obligations.map((o) => `<div class="row"><span class="pill ${o.status === "paid" ? "ok" : "warn"}">${o.status === "paid" ? "Paid" : "Due " + esc(o.due.slice(5))}</span><span class="small">${esc(o.label)}</span><span class="spacer"></span><span class="num small">${fmt(o.amount)} ${o.currency}</span></div>`).join("") || '<span class="muted small">Nothing due.</span>'}</div></section>
-    <section class="panel"><div class="panel-head"><h2>Settling in ${host.flag}</h2><span class="small muted">${setup.filter((c) => c.done).length}/${setup.length}</span></div><div class="list">${setup.map((c) => `<div class="check ${c.done ? "done" : ""}"><span class="box">${c.done ? "✓" : ""}</span><div><b class="small">${esc(c.title)}</b></div></div>`).join("")}</div></section>
+    <section class="panel"><div class="panel-head"><h2>Settling in ${host.flag}</h2><span class="small muted">${setup.filter((c) => c.done).length}/${setup.length}</span></div><div class="list">${setup.map((c) => `<button type="button" class="check ${c.done ? "done" : ""}" data-check="${c.id}" aria-pressed="${c.done}"><span class="box">${c.done ? "✓" : ""}</span><span><b class="small">${esc(c.title)}</b></span></button>`).join("")}</div></section>
   </div>`;
 }
 
@@ -391,7 +391,7 @@ function screenTrip() {
   return `${pendingBlock()}
   <section class="panel">
     <div class="panel-head"><h2>${esc(r.destination)}</h2><span class="pill accent">${esc(r.dates)} · in ${r.daysUntil} days</span></div>
-    <div class="list">${r.checklist.map((c) => `<div class="check ${c.done ? "done" : ""}"><span class="box">${c.done ? "✓" : ""}</span><div><b class="small">${esc(c.title)}</b><p>${esc(c.detail)}</p></div></div>`).join("")}</div>
+    <div class="list">${r.checklist.map((c) => `<button type="button" class="check ${c.done ? "done" : ""}" data-check="${c.id}" aria-pressed="${c.done}"><span class="box">${c.done ? "✓" : ""}</span><span><b class="small">${esc(c.title)}</b><span class="d">${esc(c.detail)}</span></span></button>`).join("")}</div>
   </section>
   <section class="panel">
     <div class="panel-head"><h2>How to pay in China</h2><span class="small muted">cost of spending ${fmt(r.paymentCosts.spendLocal)} ${esc(r.paymentCosts.tripCurrency)} on the trip</span></div>
@@ -564,6 +564,7 @@ document.addEventListener("click", (e) => {
   else if (d.autonomy) { state.session.updateSettings({ autonomy: d.autonomy }); toast("Saved. Only you can change this."); renderAll(); }
   else if (d.brain) { state.brain = d.brain; resetAgent(); renderAll(); }
   else if (d.tier) { state.tier = d.tier; renderAll(); }
+  else if (d.check) { const r = state.session.toggleSetupStep(d.check); toast(r.done ? "Marked as done" : "Marked as not done"); renderAll(); }
   else if (d.demo) demo(d.demo);
   else if (d.closeDrawer) $("#drawer").hidden = true;
 });

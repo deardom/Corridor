@@ -353,6 +353,16 @@ export class Session {
     return out;
   }
 
+  /** The student ticks or unticks a setup / trip checklist step (user action, logged). */
+  toggleSetupStep(id) {
+    const L = this.ledger;
+    const i = L.setupDone.indexOf(id);
+    if (i >= 0) L.setupDone.splice(i, 1); else L.setupDone.push(id);
+    const done = i < 0;
+    this.audit.append("user", "checklist_step", { id, done });
+    return { status: "ok", id, done };
+  }
+
   // ---------- user-only settings (tier T3 for the agent) ----------
   updateSettings(patch, actor = "user") {
     if (actor !== "user") return { status: "blocked", reasons: ["Only the user can change settings"] };
