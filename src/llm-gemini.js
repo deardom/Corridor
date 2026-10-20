@@ -7,7 +7,7 @@ const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 /** Pick the newest general-purpose Flash model the key can use. */
 export async function pickGeminiModel(apiKey, fetchImpl = fetch) {
-  const res = await fetchImpl(`${BASE}/models?key=${encodeURIComponent(apiKey)}&pageSize=200`);
+  const res = await fetchImpl(`${BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": apiKey } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data?.error?.message || `HTTP ${res.status}`), { code: res.status === 400 || res.status === 403 ? "bad_key" : "upstream_error" });
   const usable = (data.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
@@ -53,7 +53,7 @@ export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 6, fe
     const onAbort = () => ctrl.abort();
     signal?.addEventListener?.("abort", onAbort);
     try {
-      return await doFetch(url, { method: "POST", signal: ctrl.signal, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      return await doFetch(url, { method: "POST", signal: ctrl.signal, headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify(body) });
     } catch (e) {
       if (signal?.aborted) throw Object.assign(new Error("Stopped."), { code: "cancelled" });
       if (ctrl.signal.aborted) throw Object.assign(new Error("Gemini took too long to answer. Try again, or ask a shorter question."), { code: "timeout" });
@@ -65,7 +65,7 @@ export function geminiAgent({ apiKey, model, webSearch = true, maxRounds = 6, fe
     if (!modelId) modelId = await pickGeminiModel(apiKey, doFetch);
     const thinking = useThinkingConfig ? thinkingFor(modelId) : null;
     const full = thinking ? { ...body, generationConfig: { ...(body.generationConfig || {}), thinkingConfig: thinking } } : body;
-    const res = await post(`${BASE}/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`, full, signal);
+    const res = await post(`${BASE}/models/${modelId}:generateContent`, full, signal);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = data?.error?.message || `HTTP ${res.status}`;
