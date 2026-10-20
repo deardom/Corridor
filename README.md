@@ -43,7 +43,7 @@ The key stays in your browser and is sent only to the provider you chose. In the
 
 ## Safety design in one paragraph
 
-The language model **proposes**; a deterministic policy engine **decides**; the student **confirms**. Tools are split into four permission tiers (read, plan, act, forbidden). Every money action passes nine checks (autonomy setting, verified payee, document integrity, scam signals, structuring, per-transfer and daily limits, funds, home-country FX rules, budget warning) and is checked again at the moment the student presses Confirm. Instructions hidden inside documents are never followed. Every step is written to a SHA-256 hash-chained audit log.
+The language model **proposes**; a deterministic policy engine **decides**; the student **confirms**. Tools are split into four permission tiers (read, plan, act, forbidden). Every money action passes nine checks (autonomy setting, verified payee, document integrity, scam signals, structuring, per-transfer and daily limits, funds, home-country FX rules, budget warning) and is checked again at the moment the student presses Confirm. Instructions hidden inside documents are never followed. Every step is written to a SHA-256 hash-chained audit log. See the [Security Self-Assessment Report](docs/Corridor_Security_Self_Assessment.pdf).
 
 ## Run it
 
@@ -86,6 +86,7 @@ src/packs/              country packs: ca.js, kz.js, cn.js (add a country = add 
 test/core.test.js       automated tests
 scripts/                evidence generator, local server, terminal chat
 evidence/               sandbox operation logs (JSONL), transcripts, summary
+docs/                   security self-assessment report (PDF)
 ```
 
 ## Test cases
