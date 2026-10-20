@@ -323,12 +323,44 @@ export class Session {
     }
     this.pending.delete(pendingId);
     try {
+      const before = this.budget().safeToSpend;
       const result = this.#execute(p.action, p.params, "user_confirmed");
-      return { status: "executed", action: p.action, summary: p.summary, result };
+      const note = this.#budgetNote(p.action, p.params, result, before, this.budget().safeToSpend);
+      return { status: "executed", action: p.action, summary: p.summary, result, note };
     } catch (e) {
       this.audit.append("sandbox", "execution_failed", { action: p.action, error: e.message });
       return { status: "error", error: e.message };
     }
+  }
+
+  /** One plain sentence on what an executed action did to safe-to-spend, and why. */
+  #budgetNote(action, p, result, before, after) {
+    const L = this.ledger, cur = L.persona.budgetCurrency;
+    const n = (x) => Number(x).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const changed = Math.abs(after - before) >= 0.01;
+    const now = changed ? `Your safe-to-spend is now ${n(after)} ${cur} (was ${n(before)} ${cur}).` : null;
+    const bal = (c) => `Your ${c} balance is now ${n(L.wallets[c] || 0)} ${c}.`;
+    if (action === "buy_wishlist_item") {
+      const pot = (result?.paidFrom || []).find((x) => x.includes(" from \""));
+      if (pot && !changed) return `Paid from your savings pot (${pot}), so your safe-to-spend stays ${n(after)} ${cur}: that money was already set aside for this purchase.`;
+      if (pot) return `${pot} came from your savings pot; the rest counts against this month. ${now || `Your safe-to-spend stays ${n(after)} ${cur}.`}`;
+      return now || `Your safe-to-spend stays ${n(after)} ${cur}.`;
+    }
+    if (action === "send_money" || action === "convert_currency") {
+      const to = p.quote?.to;
+      if (action === "convert_currency" || p.payee?.kind === "self")
+        return `This moved money between your own accounts, so your safe-to-spend stays ${n(after)} ${cur}. ${bal(to)}`;
+      const ob = L.obligations.find((o) => o.kind === p.purpose && o.currency === to);
+      if (ob && ob.due && ob.due.slice(0, 7) > L.today.slice(0, 7) && !changed) {
+        const month = new Date(ob.due + "T12:00:00Z").toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+        const thisMonth = new Date(L.today + "T12:00:00Z").toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+        return `This is ${month}'s ${ob.label ? ob.label.split(",")[0].toLowerCase() : p.purpose} (due ${ob.due}), so ${thisMonth}'s safe-to-spend stays ${n(after)} ${cur}; it counts toward ${month}'s budget. ${bal(p.quote.from === to ? to : p.quote.from)}`;
+      }
+      return (now || `Your safe-to-spend stays ${n(after)} ${cur}.`) + ` ${bal(p.quote.from)}`;
+    }
+    if (action === "save_to_pot") return `Savings sit outside your spending money${changed ? `; your safe-to-spend is now ${n(after)} ${cur}` : `, so your safe-to-spend stays ${n(after)} ${cur}`}.`;
+    if (action === "pay_tuition") return `Tuition is paid outside your monthly budget, so your safe-to-spend stays ${n(after)} ${cur}.`;
+    return now;
   }
 
   reject(pendingId) {

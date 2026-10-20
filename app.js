@@ -8,6 +8,7 @@ import { getPack } from "./src/packs/index.js";
 import { midRate } from "./src/fx.js";
 import { anthropicAgent } from "./src/llm-anthropic.js";
 import { geminiAgent } from "./src/llm-gemini.js";
+import { DEMO_GEMINI_KEY } from "./src/config.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -58,7 +59,8 @@ const keyStore = {
 };
 // Inside Claude, pages can't call outside services, so the API key option is for the GitHub / self-hosted version.
 const IN_CLAUDE = !!window.claude;
-state.ai = IN_CLAUDE ? null : keyStore.get();
+const DEMO_AI = !IN_CLAUDE && DEMO_GEMINI_KEY ? { provider: "gemini", key: DEMO_GEMINI_KEY, web: true, demo: true } : null;
+state.ai = IN_CLAUDE ? null : (keyStore.get() || DEMO_AI);
 
 function brainName() {
   if (state.brain === "rules") return null;
@@ -169,7 +171,7 @@ function uiTool(name, args) {
 function confirmPending(id) {
   const att = document.getElementById(`att-${id}`);
   const r = state.session.confirm(id, { documentsAttested: !!att?.checked });
-  if (r.status === "executed") { addMsg("note", `✅ Confirmed: ${r.summary}`); toast("Done"); }
+  if (r.status === "executed") { addMsg("note", `✅ Confirmed: ${r.summary}${r.note ? `\n\n${r.note}` : ""}`); toast("Done"); }
   else if (r.status === "blocked") addMsg("note", `🛑 Blocked at execution:\n${r.reasons.map((x) => `- ${x}`).join("\n")}`);
   else addMsg("note", `Couldn't complete: ${r.error}`);
   renderAll();
@@ -465,11 +467,11 @@ function screenSafety() {
     <p class="small">Connect a real AI model so Corridor can understand any question, research the web for current information and act with your money tools. Every action still goes through the same safety guard and your Confirm.</p>
     ${IN_CLAUDE ? `<p class="small">In this Claude-hosted version, Corridor uses Claude through your Claude account. For web research with your own API key, open the GitHub version (deardom.github.io/Corridor).</p>` : `<form class="inline" id="ai-form">
       <div class="field"><label for="ai-provider">AI provider</label><select id="ai-provider"><option value="gemini" ${state.ai?.provider !== "anthropic" ? "selected" : ""}>Google Gemini (free tier)</option><option value="anthropic" ${state.ai?.provider === "anthropic" ? "selected" : ""}>Anthropic Claude (paid)</option></select></div>
-      <div class="field" style="grid-column: span 2"><label for="ai-key">API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="${state.ai?.key ? "Key saved in this browser (paste a new one to replace)" : "Paste your key"}"></div>
+      <div class="field" style="grid-column: span 2"><label for="ai-key">API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="${state.ai?.demo ? "Using the built-in demo key (paste your own to replace)" : state.ai?.key ? "Key saved in this browser (paste a new one to replace)" : "Paste your key"}"></div>
       <div class="field"><label for="ai-model">Claude model</label><select id="ai-model">${MODELS.map(([id, label]) => `<option value="${id}" ${(state.ai?.model || MODELS[0][0]) === id ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div>
       <div class="field"><label for="ai-web">Web research</label><select id="ai-web"><option value="on" ${state.ai?.web !== false ? "selected" : ""}>On: search the web for current facts</option><option value="off" ${state.ai?.web === false ? "selected" : ""}>Off</option></select></div>
       <button class="btn primary" type="submit">${state.ai?.key ? "Update" : "Connect"}</button>
-      ${state.ai?.key ? '<button class="btn danger" type="button" data-ai-forget="1">Remove key</button>' : ""}
+      ${state.ai?.key && !state.ai.demo ? '<button class="btn danger" type="button" data-ai-forget="1">Remove key</button>' : ""}
     </form>
     <p class="small muted"><b>Free:</b> get a Gemini key at aistudio.google.com (Google account, no card). Free-tier limits apply, and Google may use free-tier prompts to improve its products. <b>Paid:</b> Claude keys at console.anthropic.com. Your key is stored only in this browser and sent only to that provider.</p>`}
     <div class="seg" role="group" aria-label="Agent brain">
@@ -594,7 +596,7 @@ document.addEventListener("click", (e) => {
   else if (d.brain) { state.brain = d.brain; resetAgent(); renderAll(); }
   else if (d.tier) { state.tier = d.tier; renderAll(); }
   else if (d.check) { const r = state.session.toggleSetupStep(d.check); toast(r.done ? "Marked as done" : "Marked as not done"); renderAll(); }
-  else if (d.aiForget) { state.ai = null; keyStore.set(null); resetAgent(); renderAll(); toast("Key removed from this browser"); }
+  else if (d.aiForget) { state.ai = DEMO_AI; keyStore.set(null); resetAgent(); renderAll(); toast("Key removed from this browser"); }
   else if (d.demo) demo(d.demo);
   else if (d.closeDrawer) $("#drawer").hidden = true;
 });
@@ -632,10 +634,11 @@ document.addEventListener("submit", (e) => {
     const r = uiTool("add_income", { what: $("#in-what").value.trim(), amount, currency: $("#in-cur").value });
     if (r.status === "ok") { toast(`Income added. Safe to spend: ${fmt(r.safeToSpendNow)}`); addMsg("note", `💰 Added **${fmt(amount)} ${r.recorded.currency}** (${r.recorded.label}). Safe to spend this month: **${fmt(r.safeToSpendNow)}**.`); }
   } else if (f.id === "ai-form") {
-    const key = $("#ai-key").value.trim() || state.ai?.key;
-    if (!key) { toast("Paste your Anthropic API key"); return; }
-    state.ai = { provider: $("#ai-provider").value, key, model: $("#ai-model").value, web: $("#ai-web").value === "on" };
-    keyStore.set(state.ai); state.brain = "auto"; resetAgent(); renderAll();
+    const key = $("#ai-key").value.trim() || (state.ai?.demo ? null : state.ai?.key);
+    if (!key && DEMO_AI) { state.ai = { ...DEMO_AI, web: $("#ai-web").value === "on" }; }
+    else if (!key) { toast("Paste your API key"); return; }
+    else { state.ai = { provider: $("#ai-provider").value, key, model: $("#ai-model").value, web: $("#ai-web").value === "on" }; keyStore.set(state.ai); }
+    state.brain = "auto"; resetAgent(); renderAll();
     toast(`Connected: ${brainName()}`);
     addMsg("note", `🧠 Now answering with **${brainName()}**. Ask me anything about money, studying or travelling abroad.`);
   } else if (f.id === "limits-form") {

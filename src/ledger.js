@@ -172,7 +172,9 @@ export class Ledger {
         paidFrom.push(`${restCad} CAD by card${fee ? ` (+${fee} CAD foreign fee)` : ""}`);
       }
     }
-    this.budget.spends.push({ date: this.today, category: item.category, merchant: `${item.store}: ${item.name}`, amount: item.price, currency: item.currency, fromPot: fromPotCad > 0 });
+    // The part paid from a savings pot was already set aside; only the rest counts against this month's budget.
+    if (fromPotCad > 0) this.budget.spends.push({ date: this.today, category: item.category, merchant: `${item.store}: ${item.name} (from savings)`, amount: fromPotCad, currency: "CAD", fromPot: true });
+    if (restCad > 0) this.budget.spends.push({ date: this.today, category: item.category, merchant: `${item.store}: ${item.name}`, amount: restCad, currency: "CAD", fromPot: false });
     item.status = "bought";
     const firstSeen = Math.max(...item.history.map((h) => h.price));
     const tx = { id: this.nextTx(), date: this.today, direction: "out", kind: "purchase", from: item.currency, to: item.currency, sent: item.price, received: item.price, fees: 0, totalCostVsMid: 0, payeeId: item.store, wishlistId: item.id, paidFrom, cadEquivalent: 0, status: "settled_simulated", savedVsHighest: round2(firstSeen - item.price), currency: item.currency };

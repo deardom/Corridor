@@ -33,7 +33,7 @@ Out of the box the app uses a built-in offline agent for its own tasks. To let C
    * **Anthropic Claude (paid):** key from console.anthropic.com; pick a model (Claude Sonnet 5.5 recommended).
 3. Keep **Web research** on and ask anything in the chat. The agent plans with the model, searches the web when facts may have changed (and cites its sources), and uses Corridor's 20 money tools. Every action still passes the safety guard and needs your Confirm.
 
-The key stays in your browser and is sent only to the provider you chose. In the Claude-hosted demo, signed-in viewers get Claude without a key (without web research). From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
+The key stays in your browser and is sent only to the provider you chose. The hosted demo can also ship a team demo key for Gemini (`src/config.js`), restricted in Google Cloud to this website, so visitors get the AI agent without a key; a personal key always takes priority. In the Claude-hosted demo, signed-in viewers get Claude without a key (without web research). From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
 
 ## How it works: four roles
 

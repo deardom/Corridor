@@ -103,7 +103,8 @@ Tools: `compare_routes` [T0] → ok, `send_money` [T2] → awaiting_user_confirm
     "cadEquivalent": 0,
     "status": "settled_simulated",
     "arrivesBy": "2026-10-21"
-  }
+  },
+  "note": "This moved money between your own accounts, so your safe-to-spend stays 406.01 CAD. Your KZT balance is now 170,036.31 KZT."
 }
 ```
 
@@ -142,7 +143,8 @@ Tools: `send_money` [T2] → awaiting_user_confirmation
     "cadEquivalent": 434.06,
     "status": "settled_simulated",
     "arrivesBy": "2026-10-19"
-  }
+  },
+  "note": "This is November's dorm rent (due 2026-11-01), so October's safe-to-spend stays 406.01 CAD; it counts toward November's budget. Your KZT balance is now 10,036.31 KZT."
 }
 ```
 
@@ -323,7 +325,8 @@ Tools: `get_wishlist` [T0] → ok, `buy_wishlist_item` [T2] → awaiting_user_co
     "status": "settled_simulated",
     "savedVsHighest": 69000,
     "currency": "KZT"
-  }
+  },
+  "note": "Paid from your savings pot (621.25 CAD from \"Shanghai trip\"), so your safe-to-spend stays 406.01 CAD: that money was already set aside for this purchase."
 }
 ```
 
@@ -434,7 +437,8 @@ Tools: `get_budget` [T0] → ok, `set_auto_save` [T2] → awaiting_user_confirma
     "weekly": 37.14,
     "why": "Travel medical insurance for China plus a buffer for costs insurance doesn't cover (paying upfront, deductibles).",
     "autoSave": true
-  }
+  },
+  "note": null
 }
 ```
 
@@ -636,7 +640,8 @@ Tools: `review_document` [T0] → ok, `plan_tuition_payment` [T1] → ok, `pay_t
     "cadEquivalent": 18606.79,
     "status": "settled_simulated",
     "arrivesBy": "2026-10-24"
-  }
+  },
+  "note": "Tuition is paid outside your monthly budget, so your safe-to-spend stays 834 CAD."
 }
 ```
 
