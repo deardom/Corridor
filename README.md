@@ -6,6 +6,7 @@ Fintechathon 2026, International Track, Topic C (Cross-border & Student Finance)
 Christina is a Canadian student on exchange in Almaty who is planning a trip to Shanghai. In one semester she deals with three currencies, a local payment system she has to join (Kaspi), hidden card fees, a tight budget, a flight she wants at the right price, health insurance for the trip, and scam calls aimed at foreigners. Corridor is the agent that handles this for her. Her story is one route: the same engine serves any student going from any country to any other, because everything country specific lives in a plug-in **country pack**.
 
 * **Live demo (GitHub Pages):** https://deardom.github.io/Corridor/ (runs in any browser with the built-in agent)
+* **Live demo with Claude as the agent:** https://claude.ai/artifact/UQ9WLHNqQVNZCTLw5s39u4 (the AI conversation uses Claude when the viewer is signed in; otherwise the built-in agent answers with the same tools and safety rules)
 * **Everything is a sandbox.** No real bank, card or account is connected. Exchange rates are an illustrative snapshot.
 
 ## What the agent does
@@ -31,7 +32,7 @@ Out of the box the app uses a built-in offline agent for its own tasks. To let C
    * **Anthropic Claude (paid):** key from console.anthropic.com; pick a model (Claude Sonnet 5.5 recommended).
 3. Keep **Web research** on and ask anything in the chat. The agent plans with the model, searches the web when facts may have changed (and cites its sources), and uses Corridor's 20 money tools. Every action still passes the safety guard and needs your Confirm.
 
-The key stays in your browser and is sent only to the provider you chose. From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
+The key stays in your browser and is sent only to the provider you chose. In the Claude-hosted demo, signed-in viewers get Claude without a key (without web research). From the terminal, `npm run cli` accepts any OpenAI-compatible model (DeepSeek, Qwen).
 
 ## How it works: four roles
 
@@ -63,7 +64,7 @@ LLM_API_KEY=sk-... LLM_BASE_URL=https://api.deepseek.com/v1 LLM_MODEL=deepseek-c
 
 ### Deployment
 
-The web app is static files (`index.html`, `app.js`, `src/`). Any static host works (GitHub Pages, Netlify, an S3 bucket): upload the folder as is. The live demo above is served by GitHub Pages from this repository.
+The web app is static files (`index.html`, `app.js`, `src/`). Any static host works (GitHub Pages, Netlify, an S3 bucket): upload the folder as is. The hosted demo above runs on Claude artifacts, which also provides the Claude model to signed-in viewers without an API key.
 
 ## Repository map
 
