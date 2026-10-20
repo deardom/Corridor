@@ -7,6 +7,7 @@ Christina is a Canadian student on exchange in Almaty who is planning a trip to 
 
 * **Live demo (GitHub Pages):** https://deardom.github.io/Corridor/ (runs in any browser with the built-in agent)
 * **Live demo with Claude as the agent:** https://claude.ai/artifact/UQ9WLHNqQVNZCTLw5s39u4 (the AI conversation uses Claude when the viewer is signed in; otherwise the built-in agent answers with the same tools and safety rules)
+* **Documentation:** [Technical Documentation](docs/Corridor_Technical_Documentation.pdf) and [Security Self-Assessment Report](docs/Corridor_Security_Self_Assessment.pdf)
 * **Everything is a sandbox.** No real bank, card or account is connected. Exchange rates are an illustrative snapshot.
 
 ## What the agent does
@@ -86,7 +87,7 @@ src/packs/              country packs: ca.js, kz.js, cn.js (add a country = add 
 test/core.test.js       automated tests
 scripts/                evidence generator, local server, terminal chat
 evidence/               sandbox operation logs (JSONL), transcripts, summary
-docs/                   security self-assessment report (PDF)
+docs/                   technical documentation and security self-assessment report (PDF)
 ```
 
 ## Test cases
